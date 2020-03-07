@@ -17,6 +17,7 @@ johns-hopkins/backfill.json: johns-hopkins/repo docker
 
 output: ingest johns-hopkins/backfill.json
 	./ingest -input-file=johns-hopkins/backfill.json
+	chmod -R 777 output
 
 clean-jh:
 	@-rm -rf johns-hopkins/repo

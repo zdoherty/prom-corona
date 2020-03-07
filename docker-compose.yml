@@ -1,0 +1,24 @@
+version: "3"
+
+services:
+  prometheus:
+    image: prom/prometheus
+    command:
+      - --storage.tsdb.retention.size=10GB
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/data
+    ports:
+      - "9090:9090"
+    depends_on:
+      - exporter
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+      - "./output:/data"
+
+  exporter:
+    image: zdoherty/prom-corona
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./johns-hopkins:/data"
+
