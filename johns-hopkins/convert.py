@@ -5,12 +5,15 @@ import datetime
 import argparse
 import json
 import time
+import logging
 
 from prometheus_client import Gauge, start_http_server
 
 # configurables
 PROM_PORT = int(os.environ.get('PROM_PORT', 8000))
 DATA_ROOT = os.environ.get('DATA_ROOT', '/data')
+DEBUG = os.environ.get('DEBUG', False)
+INTERVAL = int(os.environ.get('INTERVAL', 60))
 
 # filenames from johns hopkins repo
 STATUSES = ('Confirmed', 'Deaths', 'Recovered')
@@ -124,12 +127,13 @@ def serve():
 
     start_http_server(8000)
     while True:
+        logging.info('loading data')
         data = load()
         for metric, serieses in data.items():
             for series in serieses:
-                print(series.locality.as_labels())
+                logging.debug('updating %s for labels %s', metric, series.locality.as_labels())
                 GAUGES[metric].labels(**series.locality.as_labels()).set(series.latest)
-        time.sleep(60)
+        time.sleep(INTERVAL)
 
 
 def main():
@@ -139,6 +143,7 @@ def main():
         'serve'
     ], type=str, default='serve')
     args = p.parse_args()
+    logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO)
     if args.action == 'backfill':
         with open(os.path.join(DATA_ROOT, 'backfill.json'), 'w') as outfd:
             json.dump(backfill(), outfd, indent=2)
