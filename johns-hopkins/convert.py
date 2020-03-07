@@ -4,28 +4,29 @@ import os
 import datetime
 import argparse
 import json
+import time
 
-from prometheus_client import Counter
+from prometheus_client import Gauge, start_http_server
 
 # filenames from johns hopkins repo
-STATUSES = ("Confirmed", "Deaths", "Recovered")
+STATUSES = ('Confirmed', 'Deaths', 'Recovered')
 TIMESERIES_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                'repo',
                                'csse_covid_19_data',
                                'csse_covid_19_time_series')
-TIMESERIES_FN_FMT = "time_series_19-covid-{status}.csv"
-TIMESERIES_FILES = {"%s_total" % s.lower(): os.path.join(TIMESERIES_ROOT, TIMESERIES_FN_FMT.format(status=s)) for s in STATUSES}
+TIMESERIES_FN_FMT = 'time_series_19-covid-{status}.csv'
+TIMESERIES_FILES = {'%s_total' % s.lower(): os.path.join(TIMESERIES_ROOT, TIMESERIES_FN_FMT.format(status=s)) for s in STATUSES}
+LABELS=['lat', 'long', 'region', 'state', 'county']
+GAUGES = {
+    '%s_total' % s.lower(): Gauge('%s_total' % s.lower(), 'Number of %s' % s, LABELS) for s in STATUSES
+}
 
 # csv header: Province/State,Country/Region,Lat,Long,1/22/20,...
-DATEFMT = "%m/%d/%y"
+DATEFMT = '%m/%d/%y'
 STATEI, REGIONI, LATI, LONGI, SERIES_START = 0, 1, 2, 3, 4
 US_SPECIAL = (
     'Unassigned Location (From Diamond Princess)'
 )
-
-confirmed = Counter('confirmed_total', 'Number of confirmed cases')
-deaths = Counter('deaths_total', 'Number of fatalities')
-recovered = Counter('recovered_total', 'Number of recovered cases')
 
 
 class Locality(object):
@@ -37,15 +38,15 @@ class Locality(object):
 
     def as_labels(self):
         l = {
-            "region": self.region,
-            "lat": self.lat,
-            "long": self.long,
+            'region': self.region,
+            'lat': self.lat,
+            'long': self.long,
+            'state': self.state,
+            'county': '',
         }
-        if self.state:
-            l["state"] = self.state
         if self.region == 'US' and self.state not in US_SPECIAL:
             # try to parse county in US
-            split = self.state.split(", ")
+            split = self.state.split(', ')
             l['county'], l['state'] = split[0], split[1]
         return l
 
@@ -67,24 +68,28 @@ class Series(object):
         # t: time, epoch millis
         # v: value
         labels = {
-            "__name__": name,
+            '__name__': name,
         }
         labels.update(self.locality.as_labels())
         oldpoints = []
         for date, point in zip(self.dates, self.points):
             oldpoints.append({
-                "l": labels,
-                "t": int(round(date.timestamp() * 1000)),
-                "v": int(point),
+                'l': labels,
+                't': int(round(date.timestamp() * 1000)),
+                'v': int(point),
             })
         return oldpoints
 
 
 def parse_file(filename):
+    'parse a single timeseries file'
+
+    # header row contains labels and dates, each following row contains label values and series
     with open(filename, 'r') as infd:
         reader = csv.reader(infd)
         header = next(reader)
         rows = list(reader)
+
     dates = [datetime.datetime.strptime(d, DATEFMT) for d in header[SERIES_START:]]
     parsed = []
     # each row is a locality followed by a timeseries
@@ -102,16 +107,28 @@ def load():
     return data
 
 
-def backfill(data):
+def backfill():
+    'dumps data in json format expected by prom ingest'
+
+    data = load()
     metrics = []
-    for metric, series in data.items():
-        for s in series:
-            metrics.extend(s.backfill(metric))
+    for metric, serieses in data.items():
+        for series in serieses:
+            metrics.extend(series.backfill(metric))
     return metrics
 
 
-def serve(data):
-    pass
+def serve():
+    'runs prometheus metric server with latest data'
+
+    start_http_server(8000)
+    while True:
+        data = load()
+        for metric, serieses in data.items():
+            for series in serieses:
+                print(series.locality.as_labels())
+                GAUGES[metric].labels(**series.locality.as_labels()).set(series.latest)
+        time.sleep(60)
 
 
 def main():
@@ -121,11 +138,10 @@ def main():
         'serve'
     ], type=str, default='serve')
     args = p.parse_args()
-    data = load()
     if args.action == 'backfill':
-        print(json.dumps(backfill(data)))
-    else:
-        serve(data)
+        print(json.dumps(backfill()))
+    elif args.action == 'serve':
+        serve()
 
 if __name__ == '__main__':
     main()
