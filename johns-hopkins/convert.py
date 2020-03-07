@@ -114,6 +114,8 @@ def backfill():
     for metric, serieses in data.items():
         for series in serieses:
             metrics.extend(series.backfill(metric))
+    # ingest expects metrics to be sorted by time
+    metrics = sorted(metrics, key=lambda x: x['t'])
     return metrics
 
 

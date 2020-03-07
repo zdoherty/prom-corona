@@ -1,18 +1,19 @@
-ingest-repo:
-	git clone https://github.com/roidelapluie/ingest ingest-repo
-
-ingest: ingest-repo
-	cd ingest-repo && go build -o ../ingest
-
-johns-hopkins/repo:
-	git clone https://github.com/CSSEGISandData/COVID-19 johns-hopkins/repo
-
 docker:
 	docker build -t zdoherty/prom-corona:latest .
 
-johns-hopkins/backfill.json: export DATA_ROOT=$(shell pwd)/johns-hopkins/repo
+# ingest - tool for backfill prometheus data
+ingest-repo:
+	git clone https://github.com/roidelapluie/ingest ingest-repo
+ingest: ingest-repo
+	cd ingest-repo && go build -o ../ingest
+
+# johns hopkins covid19 data
+johns-hopkins/repo:
+	git clone https://github.com/CSSEGISandData/COVID-19 johns-hopkins/repo
+
+# input for ingest from jh repo
 johns-hopkins/backfill.json: johns-hopkins/repo docker
-	python johns-hopkins/convert.py backfill >johns-hopkins/backfill.json
+	docker run -v $(shell pwd)/johns-hopkins:/data zdoherty/prom-corona backfill
 
 output: ingest johns-hopkins/backfill.json
 	./ingest -input-file=johns-hopkins/backfill.json
@@ -21,7 +22,8 @@ clean-jh:
 	@-rm -rf johns-hopkins/repo
 
 clean-backfill:
-	@-rm johns-hopkins/backfill.json
+	@-rm -f johns-hopkins/backfill.json
+	@-rm -rf output output.wal
 
 clean-ingest:
 	@-rm -rf ingest ingest-repo
