@@ -7,8 +7,11 @@ ingest: ingest-repo
 johns-hopkins/repo:
 	git clone https://github.com/CSSEGISandData/COVID-19 johns-hopkins/repo
 
+docker:
+	docker build -t zdoherty/prom-corona:latest .
+
 johns-hopkins/backfill.json: export DATA_ROOT=$(shell pwd)/johns-hopkins/repo
-johns-hopkins/backfill.json: johns-hopkins/repo
+johns-hopkins/backfill.json: johns-hopkins/repo docker
 	python johns-hopkins/convert.py backfill >johns-hopkins/backfill.json
 
 output: ingest johns-hopkins/backfill.json
@@ -25,4 +28,4 @@ clean-ingest:
 
 clean-all: clean-jh clean-ingest clean-backfill
 
-.PHONY: clean-jh clean-backfill clean-ingest clean-all
+.PHONY: clean-jh clean-backfill clean-ingest clean-all docker

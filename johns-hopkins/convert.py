@@ -8,12 +8,13 @@ import time
 
 from prometheus_client import Gauge, start_http_server
 
+# configurables
+PROM_PORT = int(os.environ.get('PROM_PORT', 8000))
+DATA_ROOT = os.environ.get('DATA_ROOT', '/data')
+
 # filenames from johns hopkins repo
 STATUSES = ('Confirmed', 'Deaths', 'Recovered')
-TIMESERIES_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               'repo',
-                               'csse_covid_19_data',
-                               'csse_covid_19_time_series')
+TIMESERIES_ROOT = os.path.join(DATA_ROOT, 'repo', 'csse_covid_19_data', 'csse_covid_19_time_series')
 TIMESERIES_FN_FMT = 'time_series_19-covid-{status}.csv'
 TIMESERIES_FILES = {'%s_total' % s.lower(): os.path.join(TIMESERIES_ROOT, TIMESERIES_FN_FMT.format(status=s)) for s in STATUSES}
 LABELS=['lat', 'long', 'region', 'state', 'county']
@@ -24,9 +25,7 @@ GAUGES = {
 # csv header: Province/State,Country/Region,Lat,Long,1/22/20,...
 DATEFMT = '%m/%d/%y'
 STATEI, REGIONI, LATI, LONGI, SERIES_START = 0, 1, 2, 3, 4
-US_SPECIAL = (
-    'Unassigned Location (From Diamond Princess)'
-)
+US_SPECIAL = {'Unassigned Location (From Diamond Princess)'}
 
 
 class Locality(object):
@@ -139,7 +138,8 @@ def main():
     ], type=str, default='serve')
     args = p.parse_args()
     if args.action == 'backfill':
-        print(json.dumps(backfill(), indent=2))
+        with open(os.path.join(DATA_ROOT, 'backfill.json'), 'w') as outfd:
+            json.dump(backfill(), outfd, indent=2)
     elif args.action == 'serve':
         serve()
 
