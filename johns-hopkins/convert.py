@@ -139,7 +139,7 @@ def main():
     ], type=str, default='serve')
     args = p.parse_args()
     if args.action == 'backfill':
-        print(json.dumps(backfill()))
+        print(json.dumps(backfill(), indent=2))
     elif args.action == 'serve':
         serve()
 
