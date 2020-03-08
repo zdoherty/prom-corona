@@ -51,7 +51,8 @@ class Locality(object):
         if self.region == 'US' and self.state not in US_SPECIAL:
             # try to parse county in US
             split = self.state.split(', ')
-            l['county'], l['state'] = split[0], split[1]
+            if len(split) == 2:
+                l['county'], l['state'] = split[0], split[1]
         return l
 
 
