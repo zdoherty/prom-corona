@@ -6,6 +6,7 @@ import argparse
 import json
 import time
 import logging
+import re
 
 from prometheus_client import Gauge, start_http_server
 
@@ -30,11 +31,12 @@ DATEFMT = '%m/%d/%y'
 STATEI, REGIONI, LATI, LONGI, SERIES_START = 0, 1, 2, 3, 4
 US_SPECIAL = {'Unassigned Location (From Diamond Princess)'}
 
-
 class Locality(object):
     def __init__(self, state, region, lat, long):
-        self.state = state
-        self.region = region
+        if 'Diamond Princess' in state and ',' in state:
+            state = re.sub(r' \(From Diamond Princess\)', '', state)
+        self.state = state.strip()
+        self.region = region.strip()
         self.lat = lat
         self.long = long
 
