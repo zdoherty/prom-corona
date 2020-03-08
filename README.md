@@ -6,6 +6,13 @@ to backfill a Prometheus server with.
 
 You'll need `go` to build `ingest`, and `docker` takes care of the rest. Going to move ingest into Docker at some point.
 
+## Endpoints
+
+This exporter, along with a backfilled Prometheus instance, can be found here:
+
+* [Prometheus Server for Federation](https://covid.zack.gg:9000)
+* [Exporter Endpoint](http://covid.zack.gg:9001)
+
 ## Exporter
 
 The exporter is configurable with environment variables:
